@@ -2,6 +2,7 @@ package com.example.vivotest;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
@@ -11,9 +12,9 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.LinearLayoutCompat;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
-import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
@@ -38,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Map<String, Integer> qrMap;
 
+    private ServiceLifeCycleOwner serviceLifeCycleOwner;
+
     private static final int PERMISSION_REQUEST_CAMERA = 1;
 
     @Override
@@ -46,18 +49,21 @@ public class MainActivity extends AppCompatActivity {
         qrMap = new HashMap<>();
         setContentView(R.layout.activity_main);
 
-        previewView = findViewById(R.id.activity_main_previewView);
+        LinearLayoutCompat layout = findViewById(R.id.main_layout);
+
+        AnimationDrawable animationDrawable = (AnimationDrawable) layout.getBackground();
+        animationDrawable.setEnterFadeDuration(2500);
+        animationDrawable.setExitFadeDuration(5000);
+        animationDrawable.start();
 
         qrCodeFoundButton = findViewById(R.id.activity_main_qrCodeFoundButton);
         qrCodeFoundButton.setVisibility(View.INVISIBLE);
-        qrCodeFoundButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(getApplicationContext(), qrCode, Toast.LENGTH_SHORT).show();
-                Log.i(MainActivity.class.getSimpleName(), "QR Code Found: " + qrCode);
-            }
+        qrCodeFoundButton.setOnClickListener(v -> {
+            Toast.makeText(getApplicationContext(), qrCode, Toast.LENGTH_SHORT).show();
+            Log.i(MainActivity.class.getSimpleName(), "QR Code Found: " + qrCode);
         });
 
+        serviceLifeCycleOwner = new ServiceLifeCycleOwner();
         cameraProviderFuture = ProcessCameraProvider.getInstance(this);
         requestCamera();
     }
@@ -100,14 +106,15 @@ public class MainActivity extends AppCompatActivity {
     private void bindCameraPreview(@NonNull ProcessCameraProvider cameraProvider) {
 //        previewView.setPreferredImplementationMode(PreviewView.ImplementationMode.SURFACE_VIEW);
 
-        Preview preview = new Preview.Builder()
-                .build();
+//        Preview preview = new Preview.Builder()
+//                .build();
+
 
         CameraSelector cameraSelector = new CameraSelector.Builder()
                 .requireLensFacing(CameraSelector.LENS_FACING_BACK)
                 .build();
 
-        preview.setSurfaceProvider(previewView.createSurfaceProvider());
+//        preview.setSurfaceProvider(previewView.createSurfaceProvider());
 
         ImageAnalysis imageAnalysis =
                 new ImageAnalysis.Builder()
@@ -137,12 +144,13 @@ public class MainActivity extends AppCompatActivity {
             public void qrCodeNotFound() {
                 if ((new Date()).getTime() - qrReadTime < QRSCANNER_COOLDOWN)
                     return;
-                Log.d("qrCodeNotFound", "qrCodeNotFound... ");
+//                Log.d("qrCodeNotFound", "qrCodeNotFound... ");
                 qrCodeFoundButton.setVisibility(View.INVISIBLE);
                 qrMap.clear();
             }
         }));
 
-        cameraProvider.bindToLifecycle(this, cameraSelector, imageAnalysis, preview);
+        cameraProvider.bindToLifecycle(serviceLifeCycleOwner, cameraSelector, imageAnalysis);
+        serviceLifeCycleOwner.start();
     }
 }
